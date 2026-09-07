@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { api, USERNAME, type Fixture, type ModelPrediction, type UserPrediction } from '../api'
+import { api, USERNAME, type Fixture, type LeaderboardEntry, type ModelPrediction, type UserPrediction } from '../api'
 import TeamBadge from '../components/TeamBadge'
 import { getTeamColor } from '../teams'
 
@@ -12,7 +12,7 @@ type Phase =
   | { type: 'loading' }
   | { type: 'form'; fixture: Fixture }
   | { type: 'submitting'; fixture: Fixture }
-  | { type: 'reveal'; fixture: Fixture; userPred: UserPrediction; modelPred: ModelPrediction | null }
+  | { type: 'reveal'; fixture: Fixture; userPred: UserPrediction; modelPred: ModelPrediction | null; seasonTotals: LeaderboardEntry | null }
   | { type: 'error'; message: string }
 
 // ---------------------------------------------------------------------------
@@ -189,13 +189,50 @@ function WinBar({ p_home_win, p_draw, p_away_win, homeTeam, awayTeam }: {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Season totals
+// ---------------------------------------------------------------------------
+
+function SeasonTotals({ totals }: { totals: LeaderboardEntry }) {
+  const userAhead = totals.total_user_score > totals.total_model_score
+  const modelAhead = totals.total_model_score > totals.total_user_score
+
+  return (
+    <div className="mt-5 p-5 bg-[#141414] border border-white/[0.08] rounded-xl">
+      <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-4 font-medium">
+        Season — {totals.matches_played} {totals.matches_played === 1 ? 'match' : 'matches'}
+      </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 text-center">
+          <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-1.5">You</p>
+          <p className={`text-3xl font-bold tabular-nums ${userAhead ? 'text-green-400' : 'text-white'}`}>
+            {totals.total_user_score}
+          </p>
+          {userAhead && <p className="text-[10px] text-green-400 mt-1">leading</p>}
+        </div>
+        <div className="text-[#4b5563] text-sm font-light select-none">vs</div>
+        <div className="flex-1 text-center">
+          <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-1.5">Model</p>
+          <p className={`text-3xl font-bold tabular-nums ${modelAhead ? 'text-green-400' : 'text-[#6b7280]'}`}>
+            {totals.total_model_score}
+          </p>
+          {modelAhead && <p className="text-[10px] text-green-400 mt-1">leading</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
 interface RevealProps {
   fixture: Fixture
   userPred: UserPrediction
   modelPred: ModelPrediction | null
+  seasonTotals: LeaderboardEntry | null
 }
 
-function RevealPanel({ fixture, userPred, modelPred }: RevealProps) {
+function RevealPanel({ fixture, userPred, modelPred, seasonTotals }: RevealProps) {
   const [flipped, setFlipped] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -277,6 +314,8 @@ function RevealPanel({ fixture, userPred, modelPred }: RevealProps) {
           Result will appear here once the match is played.
         </p>
       )}
+
+      {isCompleted && seasonTotals && <SeasonTotals totals={seasonTotals} />}
     </div>
   )
 }
@@ -299,8 +338,12 @@ export default function PredictionPage() {
     ])
       .then(async ([fixture, userPred]) => {
         if (userPred) {
-          const modelPred = await api.getModelPrediction(fixtureId)
-          setPhase({ type: 'reveal', fixture, userPred, modelPred })
+          const [modelPred, leaderboard] = await Promise.all([
+            api.getModelPrediction(fixtureId),
+            fixture.status === 'completed' ? api.getLeaderboard() : Promise.resolve([]),
+          ])
+          const seasonTotals = leaderboard.find(e => e.username === USERNAME) ?? null
+          setPhase({ type: 'reveal', fixture, userPred, modelPred, seasonTotals })
         } else {
           setPhase({ type: 'form', fixture })
         }
@@ -316,7 +359,7 @@ export default function PredictionPage() {
     try {
       const userPred = await api.submitPrediction(parseInt(id!), home, away)
       const modelPred = await api.getModelPrediction(parseInt(id!))
-      setPhase({ type: 'reveal', fixture, userPred, modelPred })
+      setPhase({ type: 'reveal', fixture, userPred, modelPred, seasonTotals: null })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed'
       setPhase({ type: 'error', message: msg })
@@ -363,6 +406,7 @@ export default function PredictionPage() {
           fixture={fixture}
           userPred={phase.userPred}
           modelPred={phase.modelPred}
+          seasonTotals={phase.seasonTotals}
         />
       )}
     </div>
