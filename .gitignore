@@ -6,3 +6,6 @@ venv/
 *.egg-info/
 .DS_Store
 *.db
+node_modules/
+dist/
+frontend/dist/
