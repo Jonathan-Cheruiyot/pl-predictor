@@ -8,11 +8,15 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+import external
 import orm
 import schemas
 from database import Base, engine, get_db
@@ -323,3 +327,32 @@ def leaderboard(db: Session = Depends(get_db)):
 def list_teams():
     """All team names the model knows about (from training data)."""
     return sorted(_predictor.teams)
+
+
+# ---------------------------------------------------------------------------
+# League table
+# ---------------------------------------------------------------------------
+
+@app.get("/league/standings")
+def league_standings():
+    """
+    Current Premier League standings from football-data.org.
+    Cached for 5 minutes server-side.
+    """
+    try:
+        return external.get_standings()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not fetch standings: {e}")
+
+
+@app.get("/league/team/{team_short}/squad")
+def team_squad(team_short: str):
+    """
+    Squad (name + number + position + nationality) for a team from TheSportsDB.
+    team_short is the short name as returned in the standings response (e.g. 'Arsenal').
+    Cached for 1 hour server-side.
+    """
+    try:
+        return external.get_squad(team_short)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not fetch squad: {e}")

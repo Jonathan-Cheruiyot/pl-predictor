@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/teams.ts","./src/components/nav.tsx","./src/components/teambadge.tsx","./src/pages/fixturespage.tsx","./src/pages/leaderboardpage.tsx","./src/pages/predictionpage.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/teams.ts","./src/components/nav.tsx","./src/components/teambadge.tsx","./src/pages/fixturespage.tsx","./src/pages/leaderboardpage.tsx","./src/pages/leaguepage.tsx","./src/pages/predictionpage.tsx","./src/pages/teampage.tsx"],"version":"5.9.3"}

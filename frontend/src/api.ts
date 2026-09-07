@@ -57,6 +57,29 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return r.json()
 }
 
+export interface StandingEntry {
+  position: number
+  team_id: number
+  team_name: string
+  team_short: string
+  crest_url: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goals_for: number
+  goals_against: number
+  goal_difference: number
+  points: number
+}
+
+export interface SquadPlayer {
+  name: string
+  number: string
+  position: string
+  nationality: string
+}
+
 export const api = {
   getFixtures: (status?: string): Promise<Fixture[]> =>
     get(`/fixtures${status ? `?status=${status}` : ''}`),
@@ -87,4 +110,10 @@ export const api = {
 
   getLeaderboard: (): Promise<LeaderboardEntry[]> =>
     get('/leaderboard'),
+
+  getStandings: (): Promise<StandingEntry[]> =>
+    get('/league/standings'),
+
+  getSquad: (teamShort: string): Promise<SquadPlayer[]> =>
+    get(`/league/team/${encodeURIComponent(teamShort)}/squad`),
 }

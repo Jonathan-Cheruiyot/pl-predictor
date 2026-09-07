@@ -190,6 +190,59 @@ function WinBar({ p_home_win, p_draw, p_away_win, homeTeam, awayTeam }: {
 }
 
 // ---------------------------------------------------------------------------
+// Full time score — Immortals-inspired: dominant score, no card, breathing room
+// ---------------------------------------------------------------------------
+
+function FullTimeScore({ fixture }: { fixture: Fixture }) {
+  const { primary: homeColor } = getTeamColor(fixture.home_team)
+  const { primary: awayColor } = getTeamColor(fixture.away_team)
+
+  return (
+    <div className="mt-10 mb-2 px-1">
+      <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-8 font-medium text-center">
+        Full time
+      </p>
+      <div className="flex items-center justify-between gap-2">
+
+        {/* Home team */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div
+            className="w-[3px] h-10 rounded-full flex-shrink-0"
+            style={{ backgroundColor: homeColor }}
+          />
+          <span className="text-sm font-medium text-[#d1d5db] leading-tight truncate">
+            {fixture.home_team}
+          </span>
+        </div>
+
+        {/* Score — the dominant element */}
+        <div className="flex items-center gap-2 flex-shrink-0 px-3">
+          <span className="text-8xl font-bold tabular-nums leading-none tracking-tight">
+            {fixture.actual_home}
+          </span>
+          <span className="text-3xl text-[#374151] font-light select-none">—</span>
+          <span className="text-8xl font-bold tabular-nums leading-none tracking-tight">
+            {fixture.actual_away}
+          </span>
+        </div>
+
+        {/* Away team */}
+        <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
+          <span className="text-sm font-medium text-[#d1d5db] leading-tight text-right truncate">
+            {fixture.away_team}
+          </span>
+          <div
+            className="w-[3px] h-10 rounded-full flex-shrink-0"
+            style={{ backgroundColor: awayColor }}
+          />
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Season totals
 // ---------------------------------------------------------------------------
 
@@ -298,15 +351,7 @@ function RevealPanel({ fixture, userPred, modelPred, seasonTotals }: RevealProps
 
       {/* Actual result (completed matches) */}
       {isCompleted && fixture.actual_home != null && (
-        <div className="mt-5 p-5 bg-[#141414] border border-white/[0.08] rounded-xl">
-          <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-3 font-medium">
-            Full time
-          </p>
-          <div className="space-y-2">
-            <ScoreRow team={fixture.home_team} goals={fixture.actual_home} />
-            <ScoreRow team={fixture.away_team} goals={fixture.actual_away!} />
-          </div>
-        </div>
+        <FullTimeScore fixture={fixture} />
       )}
 
       {!isCompleted && (

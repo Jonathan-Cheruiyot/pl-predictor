@@ -5,7 +5,7 @@ export default function Nav() {
 
   const linkClass = (path: string) =>
     `text-sm transition-colors ${
-      pathname === path
+      pathname === path || pathname.startsWith(path + '/')
         ? 'text-white'
         : 'text-[#6b7280] hover:text-[#a0a0a0]'
     }`
@@ -18,6 +18,7 @@ export default function Nav() {
         </Link>
         <nav className="flex items-center gap-6">
           <Link to="/" className={linkClass('/')}>Fixtures</Link>
+          <Link to="/league" className={linkClass('/league')}>Table</Link>
           <Link to="/leaderboard" className={linkClass('/leaderboard')}>Leaderboard</Link>
         </nav>
       </div>

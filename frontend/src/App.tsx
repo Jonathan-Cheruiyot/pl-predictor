@@ -3,6 +3,8 @@ import Nav from './components/Nav'
 import FixturesPage from './pages/FixturesPage'
 import PredictionPage from './pages/PredictionPage'
 import LeaderboardPage from './pages/LeaderboardPage'
+import LeaguePage from './pages/LeaguePage'
+import TeamPage from './pages/TeamPage'
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
             <Route path="/" element={<FixturesPage />} />
             <Route path="/fixtures/:id" element={<PredictionPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/league" element={<LeaguePage />} />
+            <Route path="/team/:teamShort" element={<TeamPage />} />
           </Routes>
         </main>
       </div>
