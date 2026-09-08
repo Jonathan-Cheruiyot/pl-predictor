@@ -294,6 +294,33 @@ def submit_result(
 # Leaderboard
 # ---------------------------------------------------------------------------
 
+@app.get("/leaderboard/history/{username}")
+def leaderboard_history(username: str, db: Session = Depends(get_db)):
+    """
+    Per-fixture scores for a user, ordered by kickoff time.
+    Returns list of {fixture_id, kickoff_time, home_team, away_team, user_score, model_score}.
+    Used to draw a cumulative points chart on the leaderboard page.
+    """
+    rows = (
+        db.query(orm.Score, orm.Fixture)
+        .join(orm.Fixture, orm.Score.fixture_id == orm.Fixture.id)
+        .filter(orm.Score.username == username)
+        .order_by(orm.Fixture.kickoff_time)
+        .all()
+    )
+    return [
+        {
+            "fixture_id": score.fixture_id,
+            "kickoff_time": fixture.kickoff_time.isoformat(),
+            "home_team": fixture.home_team,
+            "away_team": fixture.away_team,
+            "user_score": score.user_score,
+            "model_score": score.model_score,
+        }
+        for score, fixture in rows
+    ]
+
+
 @app.get("/leaderboard", response_model=list[schemas.LeaderboardEntry])
 def leaderboard(db: Session = Depends(get_db)):
     """Running totals: each user's accumulated points vs the model."""

@@ -38,6 +38,15 @@ export interface LeaderboardEntry {
   matches_played: number
 }
 
+export interface ScoreHistoryEntry {
+  fixture_id: number
+  kickoff_time: string
+  home_team: string
+  away_team: string
+  user_score: number
+  model_score: number
+}
+
 async function get<T>(path: string): Promise<T> {
   const r = await fetch(`${API_URL}${path}`)
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
@@ -110,6 +119,9 @@ export const api = {
 
   getLeaderboard: (): Promise<LeaderboardEntry[]> =>
     get('/leaderboard'),
+
+  getScoreHistory: (username: string): Promise<ScoreHistoryEntry[]> =>
+    get(`/leaderboard/history/${username}`),
 
   getStandings: (): Promise<StandingEntry[]> =>
     get('/league/standings'),
