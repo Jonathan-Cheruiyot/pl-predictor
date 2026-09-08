@@ -6,8 +6,8 @@ export default function Nav() {
   const linkClass = (path: string) =>
     `text-sm transition-colors ${
       pathname === path || pathname.startsWith(path + '/')
-        ? 'text-white'
-        : 'text-[#6b7280] hover:text-[#a0a0a0]'
+        ? 'text-[#04F5FF]'
+        : 'text-[#9D79BC] hover:text-white'
     }`
 
   return (

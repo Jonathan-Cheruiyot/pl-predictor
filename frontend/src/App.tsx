@@ -9,7 +9,7 @@ import TeamPage from './pages/TeamPage'
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-[#0c0c0c] text-[#e8e8e8] font-sans antialiased">
+      <div className="min-h-screen bg-[#38003C] text-white font-sans antialiased">
         <Nav />
         <main className="mx-auto max-w-2xl px-4 py-10">
           <Routes>

@@ -58,7 +58,7 @@ export default function TeamPage() {
       {/* Back */}
       <Link
         to="/league"
-        className="text-[11px] text-[#4b5563] hover:text-[#9ca3af] transition-colors"
+        className="text-[11px] text-[#6B3F7E] hover:text-[#9ca3af] transition-colors"
       >
         ← League table
       </Link>
@@ -76,7 +76,7 @@ export default function TeamPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{row?.team_name ?? teamShort}</h1>
           {row && (
-            <p className="text-xs text-[#4b5563] mt-0.5">
+            <p className="text-xs text-[#6B3F7E] mt-0.5">
               {row.position}{row.position === 1 ? 'st' : row.position === 2 ? 'nd' : row.position === 3 ? 'rd' : 'th'} place
               {' · '}{row.points} pts
               {' · '}{row.played} played
@@ -87,12 +87,12 @@ export default function TeamPage() {
 
       {/* Squad */}
       <div className="mt-10">
-        <h2 className="text-[10px] uppercase tracking-widest text-[#4b5563] font-medium mb-5">
+        <h2 className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium mb-5">
           Squad
         </h2>
 
-        {loading && <p className="text-[#4b5563] text-sm">Loading squad…</p>}
-        {error && <p className="text-red-400/80 text-sm">{error}</p>}
+        {loading && <p className="text-[#6B3F7E] text-sm">Loading squad…</p>}
+        {error && <p className="text-[#E90052]/80 text-sm">{error}</p>}
 
         {!loading && !error && squad.length === 0 && (
           <p className="text-[#6b7280] text-sm">No squad data available.</p>
@@ -100,17 +100,17 @@ export default function TeamPage() {
 
         {!loading && !error && grouped.map(([position, players]) => (
           <div key={position} className="mb-6">
-            <p className="text-[10px] uppercase tracking-widest text-[#374151] font-medium mb-2">
+            <p className="text-[10px] uppercase tracking-widest text-[#5c2e6b] font-medium mb-2">
               {position}
             </p>
             <div className="space-y-0 divide-y divide-white/[0.04]">
               {players.map((p) => (
                 <div key={p.name} className="flex items-center gap-4 py-2.5">
-                  <span className="text-xs text-[#4b5563] tabular-nums w-5 text-right flex-shrink-0">
+                  <span className="text-xs text-[#6B3F7E] tabular-nums w-5 text-right flex-shrink-0">
                     {p.number || '—'}
                   </span>
-                  <span className="text-sm text-[#d1d5db] flex-1">{p.name}</span>
-                  <span className="text-xs text-[#4b5563]">{p.nationality}</span>
+                  <span className="text-sm text-white/80 flex-1">{p.name}</span>
+                  <span className="text-xs text-[#6B3F7E]">{p.nationality}</span>
                 </div>
               ))}
             </div>
@@ -118,7 +118,7 @@ export default function TeamPage() {
         ))}
       </div>
 
-      <p className="mt-8 text-[10px] text-[#374151]">
+      <p className="mt-8 text-[10px] text-[#5c2e6b]">
         Squad data: TheSportsDB
       </p>
     </div>
