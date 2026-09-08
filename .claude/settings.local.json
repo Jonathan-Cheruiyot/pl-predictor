@@ -5,7 +5,8 @@
       "Bash(npx tsc:*)",
       "WebFetch(domain:www.thesportsdb.com)",
       "Bash(pip install:*)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(npm run:*)"
     ]
   }
 }

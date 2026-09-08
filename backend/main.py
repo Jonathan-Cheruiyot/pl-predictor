@@ -333,6 +333,20 @@ def list_teams():
 # League table
 # ---------------------------------------------------------------------------
 
+@app.get("/league/crests")
+def league_crests():
+    """
+    Returns {shortName: crestUrl} for all current PL teams.
+    Useful for looking up crests by team name without loading the full standings.
+    Cached server-side for 5 minutes.
+    """
+    try:
+        standings = external.get_standings()
+        return {row["team_short"]: row["crest_url"] for row in standings}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not fetch crests: {e}")
+
+
 @app.get("/league/standings")
 def league_standings():
     """

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, USERNAME, type Fixture, type LeaderboardEntry, type ModelPrediction, type UserPrediction } from '../api'
-import TeamBadge from '../components/TeamBadge'
 import { getTeamColor } from '../teams'
+import Crest from '../components/Crest'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,6 +24,7 @@ function Spinner() {
     <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-green-400 rounded-full animate-spin" />
   )
 }
+
 
 function MatchHeader({ fixture }: { fixture: Fixture }) {
   const kickoff = new Date(
@@ -53,9 +54,11 @@ function MatchHeader({ fixture }: { fixture: Fixture }) {
         )}
       </div>
       <h1 className="mt-3 flex items-center gap-3 text-xl font-semibold tracking-tight">
-        <TeamBadge team={fixture.home_team} size="md" />
+        <Crest team={fixture.home_team} size={6} />
+        <span>{fixture.home_team}</span>
         <span className="text-[#4b5563] font-normal text-lg">vs</span>
-        <TeamBadge team={fixture.away_team} size="md" />
+        <Crest team={fixture.away_team} size={6} />
+        <span>{fixture.away_team}</span>
       </h1>
     </div>
   )
@@ -72,16 +75,13 @@ interface StepperProps {
 }
 
 function ScoreStepper({ team, value, onChange }: StepperProps) {
-  const { primary } = getTeamColor(team)
   const btnClass =
     'w-9 h-9 rounded-full border border-white/15 hover:border-white/40 text-[#9ca3af] hover:text-white transition-all flex items-center justify-center text-lg leading-none select-none'
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <span
-        className="text-[11px] uppercase tracking-widest font-medium"
-        style={{ color: primary }}
-      >
+      <Crest team={team} size={12} />
+      <span className="text-[11px] text-[#6b7280] font-medium text-center max-w-[80px] truncate">
         {team}
       </span>
       <div className="flex items-center gap-4 mt-1">
@@ -149,15 +149,37 @@ function PredictionForm({ fixture, onSubmit }: FormProps) {
 // Model reveal panel
 // ---------------------------------------------------------------------------
 
-function ScoreRow({ team, goals }: { team: string; goals: number }) {
-  const { primary } = getTeamColor(team)
+/** Crest · score · crest layout — Immortals-inspired, for prediction cards */
+function PredictionScore({
+  homeTeam, awayTeam, homeGoals, awayGoals,
+}: {
+  homeTeam: string; awayTeam: string; homeGoals: number; awayGoals: number
+}) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="flex items-center gap-2 text-sm text-[#d1d5db]">
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: primary }} />
-        {team}
-      </span>
-      <span className="text-2xl font-bold tabular-nums">{goals}</span>
+    <div className="flex flex-col items-center gap-3 w-full">
+      {/* Crests row */}
+      <div className="flex items-center justify-between w-full px-1">
+        <div className="flex flex-col items-center gap-2">
+          <Crest team={homeTeam} size={9} />
+          <span className="text-[10px] text-[#6b7280] text-center leading-tight max-w-[60px] truncate">
+            {homeTeam}
+          </span>
+        </div>
+
+        {/* Score */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-4xl font-bold tabular-nums leading-none">{homeGoals}</span>
+          <span className="text-xl text-[#374151] font-light select-none">—</span>
+          <span className="text-4xl font-bold tabular-nums leading-none">{awayGoals}</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-2">
+          <Crest team={awayTeam} size={9} />
+          <span className="text-[10px] text-[#6b7280] text-center leading-tight max-w-[60px] truncate">
+            {awayTeam}
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -194,29 +216,23 @@ function WinBar({ p_home_win, p_draw, p_away_win, homeTeam, awayTeam }: {
 // ---------------------------------------------------------------------------
 
 function FullTimeScore({ fixture }: { fixture: Fixture }) {
-  const { primary: homeColor } = getTeamColor(fixture.home_team)
-  const { primary: awayColor } = getTeamColor(fixture.away_team)
-
   return (
     <div className="mt-10 mb-2 px-1">
       <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-8 font-medium text-center">
         Full time
       </p>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-4">
 
-        {/* Home team */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div
-            className="w-[3px] h-10 rounded-full flex-shrink-0"
-            style={{ backgroundColor: homeColor }}
-          />
-          <span className="text-sm font-medium text-[#d1d5db] leading-tight truncate">
+        {/* Home team — crest above, name below */}
+        <div className="flex flex-col items-center gap-3 flex-1 min-w-0">
+          <Crest team={fixture.home_team} size={14} />
+          <span className="text-sm font-medium text-[#d1d5db] text-center leading-tight">
             {fixture.home_team}
           </span>
         </div>
 
-        {/* Score — the dominant element */}
-        <div className="flex items-center gap-2 flex-shrink-0 px-3">
+        {/* Score — dominant */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-8xl font-bold tabular-nums leading-none tracking-tight">
             {fixture.actual_home}
           </span>
@@ -227,14 +243,11 @@ function FullTimeScore({ fixture }: { fixture: Fixture }) {
         </div>
 
         {/* Away team */}
-        <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
-          <span className="text-sm font-medium text-[#d1d5db] leading-tight text-right truncate">
+        <div className="flex flex-col items-center gap-3 flex-1 min-w-0">
+          <Crest team={fixture.away_team} size={14} />
+          <span className="text-sm font-medium text-[#d1d5db] text-center leading-tight">
             {fixture.away_team}
           </span>
-          <div
-            className="w-[3px] h-10 rounded-full flex-shrink-0"
-            style={{ backgroundColor: awayColor }}
-          />
         </div>
 
       </div>
@@ -302,13 +315,15 @@ function RevealPanel({ fixture, userPred, modelPred, seasonTotals }: RevealProps
       <div className="grid grid-cols-2 gap-4" style={{ perspective: '1200px' }}>
         {/* ---- Your prediction ---- */}
         <div className="bg-[#141414] border border-white/[0.08] rounded-xl p-5">
-          <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-4 font-medium">
+          <p className="text-[10px] uppercase tracking-widest text-[#4b5563] mb-5 font-medium">
             Your call
           </p>
-          <div className="space-y-3">
-            <ScoreRow team={fixture.home_team} goals={userPred.predicted_home} />
-            <ScoreRow team={fixture.away_team} goals={userPred.predicted_away} />
-          </div>
+          <PredictionScore
+            homeTeam={fixture.home_team}
+            awayTeam={fixture.away_team}
+            homeGoals={userPred.predicted_home}
+            awayGoals={userPred.predicted_away}
+          />
         </div>
 
         {/* ---- Model prediction (flip card) ---- */}
@@ -324,15 +339,17 @@ function RevealPanel({ fixture, userPred, modelPred, seasonTotals }: RevealProps
 
             {/* Back face — revealed after flip */}
             <div className="flip-card-face flip-card-back bg-[#141414] border border-green-400/25 p-5">
-              <p className="text-[10px] uppercase tracking-widest text-green-400 mb-4 font-medium">
+              <p className="text-[10px] uppercase tracking-widest text-green-400 mb-5 font-medium">
                 The model
               </p>
               {modelPred ? (
                 <>
-                  <div className="space-y-3">
-                    <ScoreRow team={fixture.home_team} goals={modelPred.predicted_home} />
-                    <ScoreRow team={fixture.away_team} goals={modelPred.predicted_away} />
-                  </div>
+                  <PredictionScore
+                    homeTeam={fixture.home_team}
+                    awayTeam={fixture.away_team}
+                    homeGoals={modelPred.predicted_home}
+                    awayGoals={modelPred.predicted_away}
+                  />
                   <WinBar
                     p_home_win={modelPred.p_home_win}
                     p_draw={modelPred.p_draw}
