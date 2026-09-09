@@ -137,12 +137,10 @@ class PLPredictor:
         Returns:
             predicted_home, predicted_away: integer scoreline
             p_home_win, p_draw, p_away_win: outcome probabilities (sum to ~1)
-        Raises KeyError if either team is unknown.
+            low_confidence: True when either team has no training history
+                            (uses league-average form as fallback, never errors)
         """
-        if home_team not in self.teams:
-            raise KeyError(home_team)
-        if away_team not in self.teams:
-            raise KeyError(away_team)
+        unknown = [t for t in (home_team, away_team) if t not in self.teams]
 
         X = self._make_features(home_team, away_team)
         probs = self.clf.predict_proba(X)[0]  # [p_home, p_draw, p_away]
@@ -154,4 +152,5 @@ class PLPredictor:
             "p_home_win": float(probs[0]),
             "p_draw": float(probs[1]),
             "p_away_win": float(probs[2]),
+            "low_confidence": bool(unknown),
         }

@@ -1,20 +1,75 @@
 """
 Cached HTTP calls to external football data APIs.
 
-football-data.org  — standings (free tier: 10 req/min)
-TheSportsDB        — squad/roster (free tier, no key required)
+football-data.org  — standings + scheduled fixtures (free tier: 10 req/min)
+API-Football       — squad/roster (free tier: 100 req/day; key required)
 """
+import logging
 import os
 import time
 import httpx
 
-FDORG_KEY = os.getenv("FOOTBALL_DATA_KEY", "")
-FDORG_BASE = "https://api.football-data.org/v4"
-TSDB_BASE = "https://www.thesportsdb.com/api/v1/json/3"
+logger = logging.getLogger(__name__)
 
-STANDINGS_TTL = 300    # 5 minutes — table doesn't change mid-minute
-SCHEDULED_TTL = 1200   # 20 minutes — kickoff times matter but don't change every minute
-SQUAD_TTL = 3600       # 1 hour — squads are stable
+FDORG_KEY   = os.getenv("FOOTBALL_DATA_KEY", "")
+FDORG_BASE  = "https://api.football-data.org/v4"
+
+APIF_KEY    = os.getenv("API_FOOTBALL_KEY", "")
+APIF_BASE   = "https://v3.football.api-sports.io"
+
+STANDINGS_TTL = 300      # 5 minutes
+SCHEDULED_TTL = 1200     # 20 minutes
+SQUAD_TTL     = 86400    # 24 hours — rosters rarely change day-to-day
+
+# ---------------------------------------------------------------------------
+# API-Football team ID map — keyed by fd.org shortName (what we store/use)
+# Keys are the EXACT shortName values fd.org returns; alternates listed below
+# ---------------------------------------------------------------------------
+_APIF_TEAM_IDS: dict[str, int] = {
+    # ── Current 2025/26 PL — exact fd.org shortNames ──────────────────────
+    "Arsenal":        42,
+    "Aston Villa":    66,
+    "Bournemouth":    35,
+    "Brentford":      55,
+    "Brighton Hove":  51,   # fd.org returns "Brighton Hove"
+    "Chelsea":        49,
+    "Coventry City":  1346,
+    "Crystal Palace": 52,
+    "Everton":        45,
+    "Fulham":         36,
+    "Hull City":      64,
+    "Ipswich Town":   57,
+    "Leeds United":   63,
+    "Liverpool":      40,
+    "Man City":       50,
+    "Man United":     33,   # fd.org returns "Man United"
+    "Newcastle":      34,   # fd.org returns "Newcastle"
+    "Nottingham":     65,   # fd.org returns "Nottingham"
+    "Southampton":    41,
+    "Sunderland":     746,
+    "Tottenham":      47,
+    "Wolves":         39,
+    # ── Alternates / previous seasons / manual fixture creation ───────────
+    "Brighton":               51,
+    "Brighton & Hove Albion": 51,
+    "Coventry":               1346,
+    "Hull":                   64,
+    "Ipswich":                57,
+    "Leeds":                  63,
+    "Leicester":              46,
+    "Leicester City":         46,
+    "Man Utd":                33,
+    "Manchester City":        50,
+    "Manchester United":      33,
+    "Newcastle United":       34,
+    "Newcastle Utd":          34,
+    "Nottingham Forest":      65,
+    "Nottm Forest":           65,
+    "Nott'm Forest":          65,
+    "Spurs":                  47,
+    "West Ham":               48,
+    "Wolverhampton":          39,
+}
 
 # key → (fetched_at, data)
 _cache: dict[str, tuple[float, object]] = {}
@@ -113,60 +168,60 @@ def get_scheduled_matches() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Squad via TheSportsDB
+# Squad via API-Football
 # ---------------------------------------------------------------------------
 
-def _get_tsdb_team_id(team_short: str) -> str | None:
-    """Search TheSportsDB by short name, return their team ID."""
-    def fetch():
-        r = httpx.get(
-            f"{TSDB_BASE}/searchteams.php",
-            params={"t": team_short},
-            timeout=10,
-        )
-        r.raise_for_status()
-        teams = r.json().get("teams") or []
-        # Pick the first result in the English Premier League
-        for t in teams:
-            if "Premier League" in (t.get("strLeague") or ""):
-                return t["idTeam"]
-        # Fallback: just take the first result
-        return teams[0]["idTeam"] if teams else None
-
-    return _get_cached(f"tsdb_id:{team_short}", SQUAD_TTL, fetch)
+# API-Football position labels → normalised display labels
+_APIF_POSITION_MAP = {
+    "Goalkeeper": "Goalkeeper",
+    "Defender":   "Defender",
+    "Midfielder":  "Midfielder",
+    "Attacker":   "Forward",
+}
 
 
 def get_squad(team_short: str) -> list[dict]:
     """
     Returns a list of players (name, number, position, nationality) for a team.
-    Fetches team ID from TheSportsDB by short name, then fetches the squad.
-    Results cached for SQUAD_TTL seconds.
+    Uses API-Football free tier (/players/squads?team={id}).
+    Results cached for SQUAD_TTL seconds (24 h).
     """
     def fetch():
-        team_id = _get_tsdb_team_id(team_short)
+        team_id = _APIF_TEAM_IDS.get(team_short)
         if not team_id:
+            logger.warning(
+                "get_squad: no API-Football ID for team %r — add it to _APIF_TEAM_IDS",
+                team_short,
+            )
             return []
 
         r = httpx.get(
-            f"{TSDB_BASE}/lookup_all_players.php",
-            params={"id": team_id},
-            timeout=10,
+            f"{APIF_BASE}/players/squads",
+            params={"team": team_id},
+            headers={"x-apisports-key": APIF_KEY},
+            timeout=15,
         )
         r.raise_for_status()
-        players = r.json().get("player") or []
 
+        data = r.json()
+        responses = data.get("response") or []
+        if not responses:
+            logger.warning(
+                "get_squad: API-Football returned empty response for team %r (id=%s)",
+                team_short, team_id,
+            )
+            return []
+
+        players_raw = responses[0].get("players") or []
         result = []
-        for p in players:
-            number = (p.get("strNumber") or "").strip()
-            position = (p.get("strPosition") or "").strip()
-            # Skip coaching/non-playing staff
-            if position.lower() in {"manager", "assistant coach", "coaching", "coach"}:
-                continue
+        for p in players_raw:
+            number = str(p.get("number") or "").strip()
+            position = _APIF_POSITION_MAP.get(p.get("position", ""), p.get("position", ""))
             result.append({
-                "name": p.get("strPlayer", ""),
-                "number": number,
-                "position": position,
-                "nationality": p.get("strNationality", ""),
+                "name":        p.get("name", ""),
+                "number":      number,
+                "position":    position,
+                "nationality": "",   # not returned by /squads endpoint
             })
 
         # Sort: numbered players first (by number), then unnumbered

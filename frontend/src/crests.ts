@@ -8,11 +8,12 @@
 
 // Manual overrides for known mismatches between our CSV names and fd.org short names
 const OVERRIDES: Record<string, string> = {
-  'Brighton':      'Brighton Hove',
-  'Nottm Forest':  'Nottingham',
-  'Leeds':         'Leeds United',
-  'Ipswich':       'Ipswich Town',
-  'West Brom':     'West Bromwich',
+  'Brighton':       'Brighton Hove',
+  "Nott'm Forest":  'Nottingham',
+  'Nottm Forest':   'Nottingham',
+  'Leeds':          'Leeds United',
+  'Ipswich':        'Ipswich Town',
+  'West Brom':      'West Bromwich',
 }
 
 let _cache: Promise<Record<string, string>> | null = null

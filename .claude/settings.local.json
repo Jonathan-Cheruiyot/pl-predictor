@@ -11,7 +11,15 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\(''main.py''\\).read\\(\\)\\); print\\(''OK''\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''orm.py''\\).read\\(\\)\\); print\\(''OK''\\)\")",
       "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in [''main.py'',''orm.py'']]; print\\(''PY OK''\\)\")",
-      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in [''main.py'', ''external.py'', ''orm.py'']]; print\\(''PY OK''\\)\")"
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in [''main.py'', ''external.py'', ''orm.py'']]; print\\(''PY OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''main.py''\\).read\\(\\)\\); print\\(''PY OK''\\)\")",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in [''main.py'',''predictor.py'',''aliases.py'',''seed_past_gws.py'']]; print\\(''PY OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''external.py''\\).read\\(\\)\\); print\\(''PY OK''\\)\")",
+      "Bash(python audit_team_ids.py)",
+      "Bash(python:*)",
+      "Bash(grep -v \"^$\\\\|Training\\\\|LightGBM\\\\|Model ready\\\\|\\\\[LightGBM\\\\]\")",
+      "Bash(ls *.md)",
+      "Bash(cd:*)"
     ]
   }
 }

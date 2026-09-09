@@ -119,7 +119,7 @@ export default function TeamPage() {
       </div>
 
       <p className="mt-8 text-[10px] text-[#5c2e6b]">
-        Squad data: TheSportsDB
+        Squad data: API-Football
       </p>
     </div>
   )

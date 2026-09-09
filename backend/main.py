@@ -6,10 +6,13 @@ Docs at:  http://localhost:8000/docs
 """
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import os
 from typing import Optional
 
 from dotenv import load_dotenv
 load_dotenv()
+
+DISABLE_KICKOFF_LOCK = os.getenv("DISABLE_KICKOFF_LOCK", "false").lower() == "true"
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +22,7 @@ from sqlalchemy.orm import Session
 import external
 import orm
 import schemas
+from aliases import resolve
 from database import Base, engine, get_db
 from predictor import PLPredictor
 
@@ -91,10 +95,18 @@ def _sync_scheduled_fixtures(db: Session) -> None:
 
     changed = False
     for m in matches:
-        # Dedup: one home fixture per team pair per season
+        home = resolve(m["home_team"])
+        away = resolve(m["away_team"])
+
+        # Dedup: match on resolved name OR original fd.org name so alias
+        # changes don't create duplicate rows across restarts.
+        raw_home, raw_away = m["home_team"], m["away_team"]
         existing = (
             db.query(orm.Fixture)
-            .filter_by(home_team=m["home_team"], away_team=m["away_team"])
+            .filter(
+                orm.Fixture.home_team.in_([home, raw_home]),
+                orm.Fixture.away_team.in_([away, raw_away]),
+            )
             .first()
         )
 
@@ -112,8 +124,8 @@ def _sync_scheduled_fixtures(db: Session) -> None:
 
         # New fixture — create and try to generate model prediction
         fixture = orm.Fixture(
-            home_team=m["home_team"],
-            away_team=m["away_team"],
+            home_team=home,
+            away_team=away,
             kickoff_time=kickoff,
             gameweek=m["gameweek"],
         )
@@ -122,10 +134,11 @@ def _sync_scheduled_fixtures(db: Session) -> None:
 
         try:
             if _predictor:
-                pred = _predictor.predict(m["home_team"], m["away_team"])
-                db.add(orm.ModelPrediction(fixture_id=fixture.id, **pred))
+                pred = _predictor.predict(home, away)
+                pred_orm = {k: v for k, v in pred.items() if k != "low_confidence"}
+                db.add(orm.ModelPrediction(fixture_id=fixture.id, **pred_orm))
         except Exception:
-            pass  # Unknown team or predictor error — fixture exists without model pred
+            pass  # Predictor error — fixture exists without model pred
 
         changed = True
 
@@ -166,22 +179,21 @@ def create_fixture(payload: schemas.FixtureCreate, db: Session = Depends(get_db)
     if kickoff.tzinfo is not None:
         kickoff = kickoff.astimezone(timezone.utc).replace(tzinfo=None)
 
+    home = resolve(payload.home_team)
+    away = resolve(payload.away_team)
+
     fixture = orm.Fixture(
-        home_team=payload.home_team,
-        away_team=payload.away_team,
+        home_team=home,
+        away_team=away,
         kickoff_time=kickoff,
         gameweek=payload.gameweek,
     )
     db.add(fixture)
     db.flush()  # populate fixture.id before creating the FK row
 
-    try:
-        pred = _predictor.predict(payload.home_team, payload.away_team)
-    except KeyError as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=f"Unknown team: {e}")
-
-    model_pred = orm.ModelPrediction(fixture_id=fixture.id, **pred)
+    pred = _predictor.predict(home, away)
+    pred_orm = {k: v for k, v in pred.items() if k != "low_confidence"}
+    model_pred = orm.ModelPrediction(fixture_id=fixture.id, **pred_orm)
     db.add(model_pred)
     db.commit()
     db.refresh(fixture)
@@ -247,7 +259,7 @@ def submit_user_prediction(
         raise HTTPException(status_code=400, detail="Match already completed.")
 
     now = _utcnow()
-    if now >= fixture.kickoff_time:
+    if not DISABLE_KICKOFF_LOCK and now >= fixture.kickoff_time:
         raise HTTPException(status_code=400, detail="Prediction window closed — match has kicked off.")
 
     existing = (

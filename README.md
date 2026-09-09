@@ -1,43 +1,104 @@
 # PL Predictor
 
-A Premier League match predictor that goes head-to-head with you. The model predicts a scoreline for every fixture, you make your own prediction before kickoff, and both get scored against what actually happens.
+A Premier League score prediction app where you compete head-to-head against a statistical model. Submit your scoreline before kickoff, watch the model's prediction reveal, and track who's winning over the season.
 
-Built to answer a simple question: can a statistical model beat a football fan's gut instinct over a season?
+Built to answer a real question: can a gradient-boosted model beat a football fan's gut instinct over a full season?
+
+---
 
 ## How scoring works
 
-Both the model's prediction and your prediction are scored against the actual result:
+Both your prediction and the model's prediction are scored against the actual result after each match:
 
 | Outcome | Points |
 |---|---|
 | Exact scoreline | 3 |
-| Correct winner/draw, wrong score | 2 |
-| Wrong outcome | 0 |
+| Correct result (win/draw/loss), wrong score | 2 |
+| Wrong result | 0 |
 
-## The model(s)
+The leaderboard tracks cumulative points for you vs. the model across all scored matches.
 
-Two approaches were built and compared head-to-head rather than picking one blind:
+---
 
-**Dixon-Coles** — the classical statistical approach to football prediction. Estimates each team's attack and defense strength from historical goals, then models scorelines as a bivariate Poisson distribution with the Dixon-Coles low-score correction (accounts for the fact that 0-0, 1-0, 0-1, and 1-1 occur more often than a plain Poisson model predicts).
+## The model
 
-**LightGBM (gradient boosting)** — trained on rolling-form features (recent goals scored/conceded, points per game, home/away splits) computed strictly from data before each match, with no leakage. One classifier for match outcome (H/D/A), two Poisson-objective regressors for home/away goals.
+**LightGBM** trained on 5 seasons of Premier League data (2020/21–2024/25, ~1,900 matches).
+
+Features are computed strictly from matches *before* each fixture — no leakage:
+- Rolling 6-game averages: goals scored/conceded, points per game
+- Home/away split equivalents of the above
+- Games played (proxy for squad stability / promoted-team uncertainty)
+
+One multiclass classifier (home win / draw / away win) and two Poisson-objective regressors (home goals, away goals). The classifier's probabilities feed the win-probability bar shown after you submit; the regressors give the predicted scoreline.
+
+Teams with no training history (newly promoted clubs like Hull City, Sunderland, Coventry) get league-average form as a fallback — a prediction is always generated, flagged internally as lower-confidence.
 
 ### Backtest results
 
-Both models trained on 5 seasons (2020/21–2024/25, ~1,900 matches), backtested on 91 held-out matches from April–May 2025:
+Trained through ~March 2025, held-out test: 91 matches from April–May 2025:
 
-| Model | Avg points/match | Correct result | Exact score | Log loss |
+| Model | Avg pts/match | Correct result | Exact score | Log loss |
 |---|---|---|---|---|
-| Dixon-Coles | 0.78 | 35.2% | 7.7% | **0.980** |
+| Dixon-Coles (baseline) | 0.78 | 35.2% | 7.7% | **0.980** |
 | LightGBM | **1.23** | **53.8%** | **15.4%** | 1.017 |
+| Naive (always predict 1–1) | 0.57 | — | — | — |
 
-LightGBM wins on the metrics that matter for scoring (points, accuracy), but Dixon-Coles has slightly better-calibrated probabilities (lower log loss) — a reminder that the "best" model depends on what you're optimizing for. LightGBM's predictions are what the live app uses, since that's what the scoring rule rewards.
+LightGBM wins on scoring-rule metrics; Dixon-Coles has slightly better-calibrated probabilities (lower log loss). LightGBM is what the live app uses.
 
-Naive baseline (always predict 1-1): 0.57 avg points/match.
+---
 
-## Data
+## Features
 
-Historical match results (2020/21–2024/25 seasons) sourced from [football-data.co.uk](http://www.football-data.co.uk/) via the [datahub.io mirror](https://datahub.io/football/english-premier-league), licensed under [ODC-PDDL](http://opendatacommons.org/licenses/pddl/). Includes full-time/half-time scores, shots, corners, cards, and referee per match.
+**Fixtures**
+- Live upcoming fixtures pulled from football-data.org, grouped by gameweek with a progressive load-more pattern
+- Hero treatment for the next upcoming fixture; compact rows for the rest
+- Predictions editable up until kickoff, then locked permanently
+
+**Predictions**
+- Score-stepper UI (tap +/− for each team)
+- Model prediction hidden until after you submit — revealed with a flip-card animation
+- Win-probability bar (home / draw / away) from the model's classifier output
+- Edit button available for upcoming fixtures before kickoff; "Locked at kickoff" shown after
+
+**Results**
+- Full-time score displayed prominently on completed fixtures
+- Points earned by you and the model shown per match
+- Season totals (cumulative) shown inline on each completed fixture page
+
+**Past Fixtures**
+- Dedicated page showing all completed matches grouped by gameweek, most recent first
+- Per-row colour coding: green (you beat the model), pink (model beat you), lavender (tied)
+
+**Leaderboard**
+- Head-to-head cumulative score: you vs. the model
+- Average points per match for both
+- Cumulative line chart over the season (pure SVG, no library)
+- Multi-user table when there are additional players
+
+**League Table**
+- Live PL standings from football-data.org, refreshed every 5 minutes
+- Top-4 UCL block with prominent treatment; compact rows for the rest
+- Zone indicators: Champions League (cyan), Europa (pink), relegation (red)
+
+**Team Pages**
+- Full squad rosters from API-Football (free tier), cached 24 hours
+- Players grouped by position (GK / DEF / MID / FWD), sorted by squad number
+- Click any team in the table to open their page
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| ML modeling | Python, pandas, numpy, scipy, LightGBM, scikit-learn |
+| Backend | FastAPI, SQLAlchemy, SQLite, python-dotenv, httpx |
+| Frontend | React 18, TypeScript, Tailwind CSS v4, Vite |
+| Live fixtures & standings | football-data.org API (free tier) |
+| Squad rosters | API-Football / api-sports.io (free tier, 100 req/day) |
+| Training data | football-data.co.uk via datahub.io (ODC-PDDL) |
+
+---
 
 ## Project structure
 
@@ -49,7 +110,7 @@ pl-predictor/
 ├── season-2324.csv         # 2023/24
 ├── season-2425.csv         # 2024/25
 │
-├── model.py                # Dixon-Coles model (MLE, bivariate Poisson, DC correction)
+├── model.py                # Dixon-Coles model (MLE, bivariate Poisson + DC correction)
 ├── features.py             # Rolling-form feature engineering (no leakage)
 ├── compare_models.py       # Dixon-Coles vs LightGBM backtest
 ├── backtest.py             # Standalone Dixon-Coles backtest
@@ -57,42 +118,33 @@ pl-predictor/
 ├── backend/
 │   ├── main.py             # FastAPI app — all endpoints
 │   ├── predictor.py        # LightGBM wrapper (trains at startup, serves predictions)
+│   ├── external.py         # Cached HTTP calls: football-data.org + API-Football
+│   ├── aliases.py          # fd.org shortName → model training-data name mapping
 │   ├── orm.py              # SQLAlchemy models: Fixture, ModelPrediction, UserPrediction, Score
-│   ├── schemas.py          # Pydantic request/response schemas
-│   ├── database.py         # SQLite setup (SQLAlchemy)
-│   ├── seed.py             # Seeds sample fixtures for local dev
+│   ├── schemas.py          # Pydantic v2 request/response schemas
+│   ├── database.py         # SQLite setup
+│   ├── seed_past_gws.py    # Interactive backfill script for past gameweeks
 │   └── requirements.txt
 │
 └── frontend/
-    ├── src/
-    │   ├── api.ts          # Typed API client
-    │   ├── teams.ts        # Team color map (27 PL clubs)
-    │   ├── App.tsx         # Router
-    │   ├── pages/
-    │   │   ├── FixturesPage.tsx     # Fixture list (upcoming + completed)
-    │   │   ├── PredictionPage.tsx   # Score entry + model reveal
-    │   │   └── LeaderboardPage.tsx  # Season standings vs the model
-    │   └── components/
-    │       ├── Nav.tsx
-    │       └── TeamBadge.tsx
-    └── package.json
+    └── src/
+        ├── api.ts                      # Typed API client
+        ├── crests.ts                   # Crest URL resolution (cached, fd.org name mapping)
+        ├── teams.ts                    # Team colour map (27 clubs)
+        ├── App.tsx                     # Router + layout
+        ├── components/
+        │   ├── Nav.tsx
+        │   └── Crest.tsx               # Fixed-footprint crest image component
+        └── pages/
+            ├── FixturesPage.tsx        # Upcoming fixtures, gameweek nav, load-more
+            ├── PastFixturesPage.tsx    # Completed fixtures browsable by gameweek
+            ├── PredictionPage.tsx      # Score entry, model reveal, result display
+            ├── LeaderboardPage.tsx     # Season standings + cumulative chart
+            ├── LeaguePage.tsx          # Live PL table + zone indicators
+            └── TeamPage.tsx            # Squad roster per team
 ```
 
-## API
-
-The FastAPI backend runs on `localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/fixtures` | List fixtures (`?status=upcoming\|completed`, `?gameweek=N`) |
-| `POST` | `/fixtures` | Create a fixture (auto-generates model prediction) |
-| `GET` | `/fixtures/{id}` | Single fixture detail |
-| `POST` | `/fixtures/{id}/user-prediction` | Submit your scoreline |
-| `GET` | `/fixtures/{id}/user-prediction/{username}` | Retrieve your prediction |
-| `GET` | `/fixtures/{id}/model-prediction?username=X` | Model's prediction — **returns 403 until you've submitted yours** |
-| `POST` | `/fixtures/{id}/result` | Record actual result (auto-scores everyone using 3/2/0 rule) |
-| `GET` | `/leaderboard` | Running totals: user vs model |
-| `GET` | `/teams` | All 27 teams in the training data |
+---
 
 ## Running locally
 
@@ -102,12 +154,16 @@ The FastAPI backend runs on `localhost:8000`. Interactive docs at `http://localh
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload
+# → http://localhost:8000
+# → http://localhost:8000/docs  (interactive API docs)
 ```
 
-Seed a few upcoming fixtures for testing:
+Required environment variables in `backend/.env`:
 
-```bash
-python seed.py
+```
+FOOTBALL_DATA_KEY=your_football_data_org_key
+API_FOOTBALL_KEY=your_api_football_key
+DISABLE_KICKOFF_LOCK=false
 ```
 
 ### Frontend
@@ -119,36 +175,51 @@ npm run dev
 # → http://localhost:5173
 ```
 
-### Recording a result (manual, until ingestion is built)
+Vite proxies `/api/*` to `http://localhost:8000`.
 
-Once a match has been played, POST the actual score to trigger scoring:
+### Backfilling past gameweeks
+
+To interactively submit predictions for past matches (fetches real results from football-data.org):
 
 ```bash
-curl -X POST http://localhost:8000/fixtures/1/result \
+# Set DISABLE_KICKOFF_LOCK=true in backend/.env, restart backend, then:
+cd backend
+python seed_past_gws.py
+# Re-set DISABLE_KICKOFF_LOCK=false and restart when done
+```
+
+### Recording a result manually
+
+```bash
+curl -X POST http://localhost:8000/fixtures/{id}/result \
   -H "Content-Type: application/json" \
   -d '{"actual_home": 2, "actual_away": 1}'
 ```
 
-This marks the fixture completed and updates the leaderboard automatically.
+---
 
-### Running the model comparison
+## API endpoints
 
-```bash
-pip install pandas numpy scipy lightgbm scikit-learn
-python compare_models.py
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/fixtures` | List fixtures — syncs live upcoming matches from fd.org |
+| `POST` | `/fixtures` | Create a fixture manually |
+| `GET` | `/fixtures/{id}` | Single fixture |
+| `POST` | `/fixtures/{id}/user-prediction` | Submit (or update) your prediction |
+| `GET` | `/fixtures/{id}/user-prediction/{username}` | Retrieve your prediction |
+| `GET` | `/fixtures/{id}/model-prediction?username=X` | Model prediction — **403 until you've submitted yours** |
+| `POST` | `/fixtures/{id}/result` | Record result + auto-score all predictions |
+| `GET` | `/leaderboard` | Cumulative user vs model totals |
+| `GET` | `/leaderboard/history/{username}` | Per-fixture score history for chart |
+| `GET` | `/league/standings` | Live PL table (cached 5 min) |
+| `GET` | `/league/crests` | `{shortName: crestUrl}` map for all PL teams |
+| `GET` | `/league/team/{team_short}/squad` | Squad roster (cached 24 h) |
+| `GET` | `/teams` | All team names in the training data |
 
-## Roadmap
+---
 
-- [x] Dixon-Coles baseline model
-- [x] LightGBM comparison + backtest
-- [x] FastAPI backend (fixtures, predictions, scoring endpoints, leaderboard)
-- [x] React/TypeScript frontend (fixture list, score entry, model reveal, leaderboard)
-- [ ] Automated fixture ingestion + result scoring (scheduled job, live data API TBD)
-- [ ] Supabase/PostgreSQL migration (replacing SQLite)
-- [ ] User accounts + auth
-- [ ] Deployment
+## Data sources
 
-## Tech stack
-
-Python · pandas · numpy · scipy · LightGBM · scikit-learn · FastAPI · SQLite (SQLAlchemy) · React · TypeScript · Tailwind CSS · Vite
+- **Training data:** [football-data.co.uk](http://www.football-data.co.uk/) via [datahub.io](https://datahub.io/football/english-premier-league), ODC-PDDL licensed
+- **Live fixtures & standings:** [football-data.org](https://www.football-data.org/) free tier (10 req/min)
+- **Squad rosters:** [API-Football](https://www.api-football.com/) free tier (100 req/day)
