@@ -10,10 +10,15 @@ import Crest from '../components/Crest'
 
 type Phase =
   | { type: 'loading' }
-  | { type: 'form'; fixture: Fixture }
+  | { type: 'form'; fixture: Fixture; initialHome?: number; initialAway?: number }
   | { type: 'submitting'; fixture: Fixture }
   | { type: 'reveal'; fixture: Fixture; userPred: UserPrediction; modelPred: ModelPrediction | null; seasonTotals: LeaderboardEntry | null }
   | { type: 'error'; message: string }
+
+function isKickoffPassed(fixture: Fixture): boolean {
+  const t = fixture.kickoff_time.endsWith('Z') ? fixture.kickoff_time : fixture.kickoff_time + 'Z'
+  return new Date(t) <= new Date()
+}
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -114,16 +119,19 @@ function ScoreStepper({ team, value, onChange }: StepperProps) {
 interface FormProps {
   fixture: Fixture
   onSubmit: (home: number, away: number) => void
+  initialHome?: number
+  initialAway?: number
 }
 
-function PredictionForm({ fixture, onSubmit }: FormProps) {
-  const [home, setHome] = useState(0)
-  const [away, setAway] = useState(0)
+function PredictionForm({ fixture, onSubmit, initialHome = 0, initialAway = 0 }: FormProps) {
+  const [home, setHome] = useState(initialHome)
+  const [away, setAway] = useState(initialAway)
+  const isEditing = initialHome !== 0 || initialAway !== 0
 
   return (
     <div>
       <p className="text-xs text-[#6B3F7E] mb-10">
-        Playing as{' '}
+        {isEditing ? 'Editing prediction · ' : ''}Playing as{' '}
         <span className="text-[#9ca3af] font-medium">{USERNAME}</span>
       </p>
 
@@ -138,7 +146,7 @@ function PredictionForm({ fixture, onSubmit }: FormProps) {
           onClick={() => onSubmit(home, away)}
           className="px-8 py-3 rounded-full bg-[#E90052] hover:bg-[#ff2070] text-white text-sm font-semibold transition-colors"
         >
-          Lock in prediction
+          {isEditing ? 'Update prediction' : 'Lock in prediction'}
         </button>
       </div>
     </div>
@@ -296,9 +304,10 @@ interface RevealProps {
   userPred: UserPrediction
   modelPred: ModelPrediction | null
   seasonTotals: LeaderboardEntry | null
+  onEdit: () => void
 }
 
-function RevealPanel({ fixture, userPred, modelPred, seasonTotals }: RevealProps) {
+function RevealPanel({ fixture, userPred, modelPred, seasonTotals, onEdit }: RevealProps) {
   const [flipped, setFlipped] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -315,7 +324,7 @@ function RevealPanel({ fixture, userPred, modelPred, seasonTotals }: RevealProps
       <div className="grid grid-cols-2 gap-4" style={{ perspective: '1200px' }}>
         {/* ---- Your prediction ---- */}
         <div className="bg-white/[0.05] border border-white/[0.08] rounded-xl p-5">
-          <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] mb-5 font-medium">
+          <p className="text-[10px] uppercase tracking-widest text-[#9D79BC] mb-5 font-medium">
             Your call
           </p>
           <PredictionScore
@@ -366,15 +375,28 @@ function RevealPanel({ fixture, userPred, modelPred, seasonTotals }: RevealProps
         </div>
       </div>
 
+      {/* Edit / locked state for upcoming fixtures */}
+      {!isCompleted && (
+        isKickoffPassed(fixture) ? (
+          <p className="mt-4 text-[11px] text-[#6B3F7E] text-center">
+            Locked at kickoff — prediction can no longer be changed.
+          </p>
+        ) : (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={onEdit}
+              className="text-[11px] text-[#9D79BC] hover:text-white border border-white/10
+                         hover:border-white/30 rounded-full px-4 py-1.5 transition-colors"
+            >
+              Edit prediction
+            </button>
+          </div>
+        )
+      )}
+
       {/* Actual result (completed matches) */}
       {isCompleted && fixture.actual_home != null && (
         <FullTimeScore fixture={fixture} />
-      )}
-
-      {!isCompleted && (
-        <p className="mt-5 text-xs text-[#6B3F7E] text-center">
-          Result will appear here once the match is played.
-        </p>
       )}
 
       {isCompleted && seasonTotals && <SeasonTotals totals={seasonTotals} />}
@@ -412,6 +434,17 @@ export default function PredictionPage() {
       })
       .catch(err => setPhase({ type: 'error', message: err.message ?? 'Failed to load fixture' }))
   }, [id])
+
+  function handleEdit() {
+    if (phase.type !== 'reveal') return
+    const { fixture, userPred } = phase
+    setPhase({
+      type: 'form',
+      fixture,
+      initialHome: userPred.predicted_home,
+      initialAway: userPred.predicted_away,
+    })
+  }
 
   async function handleSubmit(home: number, away: number) {
     if (phase.type !== 'form') return
@@ -461,7 +494,12 @@ export default function PredictionPage() {
     <div>
       <MatchHeader fixture={fixture} />
       {phase.type === 'form' && (
-        <PredictionForm fixture={fixture} onSubmit={handleSubmit} />
+        <PredictionForm
+          fixture={fixture}
+          onSubmit={handleSubmit}
+          initialHome={phase.initialHome}
+          initialAway={phase.initialAway}
+        />
       )}
       {phase.type === 'reveal' && (
         <RevealPanel
@@ -469,6 +507,7 @@ export default function PredictionPage() {
           userPred={phase.userPred}
           modelPred={phase.modelPred}
           seasonTotals={phase.seasonTotals}
+          onEdit={handleEdit}
         />
       )}
     </div>

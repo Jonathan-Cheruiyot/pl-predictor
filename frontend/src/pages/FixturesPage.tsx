@@ -27,7 +27,7 @@ function HeroFixture({ fixture }: { fixture: Fixture }) {
             Next up
           </p>
           <span className="text-[#5c2e6b]">·</span>
-          <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium">
+          <p className="text-[10px] uppercase tracking-widest text-[#04F5FF] font-medium">
             {fixture.gameweek != null ? `GW${fixture.gameweek} · ` : ''}
             {formatDate(fixture.kickoff_time)} · {formatTime(fixture.kickoff_time)}
           </p>
@@ -36,10 +36,10 @@ function HeroFixture({ fixture }: { fixture: Fixture }) {
         {/* Three-column: home | vs | away */}
         <div className="flex items-center justify-between gap-4">
 
-          {/* Home — larger crest, bold name */}
+          {/* Home */}
           <div className="flex flex-col items-center gap-4 flex-1">
-            <Crest team={fixture.home_team} size={18} />
-            <span className="text-base font-bold text-white text-center leading-tight">
+            <Crest team={fixture.home_team} size={16} />
+            <span className="text-sm font-semibold text-white text-center leading-tight">
               {fixture.home_team}
             </span>
           </div>
@@ -53,10 +53,10 @@ function HeroFixture({ fixture }: { fixture: Fixture }) {
             </span>
           </div>
 
-          {/* Away — slightly smaller crest, muted name */}
+          {/* Away */}
           <div className="flex flex-col items-center gap-4 flex-1">
-            <Crest team={fixture.away_team} size={15} />
-            <span className="text-sm font-semibold text-white/70 text-center leading-tight">
+            <Crest team={fixture.away_team} size={16} />
+            <span className="text-sm font-semibold text-white text-center leading-tight">
               {fixture.away_team}
             </span>
           </div>
@@ -74,20 +74,26 @@ function HeroFixture({ fixture }: { fixture: Fixture }) {
 function UpcomingRow({ fixture }: { fixture: Fixture }) {
   return (
     <Link to={`/fixtures/${fixture.id}`} className="block group">
-      <div className="flex items-center gap-4 py-4 border-b border-white/[0.04]
+      <div className="flex items-center gap-3 py-4 border-b border-white/[0.04]
                       group-hover:border-white/[0.12] transition-colors">
-        {/* Left: crests + teams */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Home team — flex-1, left-aligned */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <Crest team={fixture.home_team} size={7} />
           <span className="text-sm font-medium text-white truncate">{fixture.home_team}</span>
-          <span className="text-[#5c2e6b] text-xs flex-shrink-0">vs</span>
-          <Crest team={fixture.away_team} size={7} />
-          <span className="text-sm font-medium text-white/70 truncate">{fixture.away_team}</span>
         </div>
 
-        {/* Right: metadata + CTA */}
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <span className="text-[11px] text-[#6B3F7E]">
+        {/* VS — center */}
+        <span className="text-[#04F5FF]/60 text-xs flex-shrink-0 font-medium">vs</span>
+
+        {/* Away team — flex-1, right-aligned */}
+        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+          <span className="text-sm font-medium text-white/70 truncate">{fixture.away_team}</span>
+          <Crest team={fixture.away_team} size={7} />
+        </div>
+
+        {/* Metadata + CTA */}
+        <div className="flex items-center gap-3 flex-shrink-0 ml-1">
+          <span className="text-[11px] text-[#04F5FF]">
             {fixture.gameweek != null ? `GW${fixture.gameweek} · ` : ''}
             {formatTime(fixture.kickoff_time)}
           </span>
@@ -131,7 +137,7 @@ function CompletedRow({ fixture }: { fixture: Fixture }) {
 
         {/* Metadata + hover CTA */}
         <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-          <span className="text-[11px] text-[#6B3F7E]">
+          <span className="text-[11px] text-[#04F5FF]">
             {fixture.gameweek != null ? `GW${fixture.gameweek}` : formatDate(fixture.kickoff_time)}
           </span>
           <span className="text-[11px] font-semibold text-[#9D79BC]
@@ -152,6 +158,7 @@ export default function FixturesPage() {
   const [fixtures, setFixtures] = useState<Fixture[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [visibleGWCount, setVisibleGWCount] = useState(1)
 
   useEffect(() => {
     api.getFixtures()
@@ -169,42 +176,87 @@ export default function FixturesPage() {
   if (!fixtures.length) {
     return (
       <div>
-        <p className="text-xl font-semibold mb-2">No fixtures yet</p>
-        <p className="text-[#9D79BC] text-sm">
-          Run{' '}
-          <code className="text-white/70 bg-white/5 px-1.5 py-0.5 rounded text-xs">python seed.py</code>
-          {' '}in the backend directory to add some.
-        </p>
+        <p className="text-xl font-semibold mb-2">No fixtures scheduled</p>
+        <p className="text-[#9D79BC] text-sm">Check back soon for upcoming Premier League fixtures.</p>
       </div>
     )
   }
 
-  const [heroFixture, ...restUpcoming] = upcoming
+  // Group upcoming by gameweek (null gameweek goes last)
+  const gwMap = new Map<number | null, Fixture[]>()
+  for (const f of upcoming) {
+    const key = f.gameweek ?? null
+    if (!gwMap.has(key)) gwMap.set(key, [])
+    gwMap.get(key)!.push(f)
+  }
+
+  // Sort gameweeks ascending: numbered first, null last
+  const sortedGWs = [...gwMap.keys()].sort((a, b) => {
+    if (a === null && b === null) return 0
+    if (a === null) return 1
+    if (b === null) return -1
+    return a - b
+  })
+
+  const visibleGWs = sortedGWs.slice(0, visibleGWCount)
+  const hasMore = visibleGWCount < sortedGWs.length
 
   return (
     <div>
       {/* ------------------------------------------------------------------ */}
-      {/* Upcoming — hero + compact list                                       */}
+      {/* Upcoming — gameweek sections with progressive load-more             */}
       {/* ------------------------------------------------------------------ */}
       {upcoming.length > 0 && (
-        <section className="mb-14">
-          <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium
-                         border-b border-white/[0.06] pb-3 mb-0">
-            Upcoming — {upcoming.length} {upcoming.length === 1 ? 'match' : 'matches'}
-          </p>
+        <div className="mb-14">
+          {visibleGWs.map((gw, gwIndex) => {
+            const gwFixtures = gwMap.get(gw)!
+            const [heroFixture, ...restFixtures] = gwFixtures
+            const isFirstGW = gwIndex === 0
+            const gwLabel = gw != null ? `Gameweek ${gw}` : 'Upcoming'
 
-          {/* Hero */}
-          <div className="mt-8 mb-6">
-            <HeroFixture fixture={heroFixture} />
+            return (
+              <section key={gw ?? 'no-gw'} className={gwIndex > 0 ? 'mt-10' : ''}>
+                <p className="text-[10px] uppercase tracking-widest text-[#04F5FF] font-medium
+                               border-b border-white/[0.06] pb-3 mb-0">
+                  {gwLabel} · {gwFixtures.length} {gwFixtures.length === 1 ? 'match' : 'matches'}
+                </p>
+
+                {isFirstGW ? (
+                  <>
+                    {/* Hero — only for the very first fixture of the current GW */}
+                    <div className="mt-8 mb-6">
+                      <HeroFixture fixture={heroFixture} />
+                    </div>
+                    {restFixtures.length > 0 && (
+                      <div className="sm:ml-6">
+                        {restFixtures.map(f => <UpcomingRow key={f.id} fixture={f} />)}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="sm:ml-6 mt-2">
+                    {gwFixtures.map(f => <UpcomingRow key={f.id} fixture={f} />)}
+                  </div>
+                )}
+              </section>
+            )
+          })}
+
+          {/* Load more / end state */}
+          <div className="mt-8 flex justify-center">
+            {hasMore ? (
+              <button
+                onClick={() => setVisibleGWCount(c => c + 1)}
+                className="text-sm text-[#9D79BC] hover:text-white border border-white/10
+                           hover:border-white/30 rounded-full px-6 py-2 transition-colors"
+              >
+                Load Gameweek {sortedGWs[visibleGWCount] ?? 'next'} →
+              </button>
+            ) : sortedGWs.length > 1 ? (
+              <p className="text-[11px] text-[#6B3F7E]">No more fixtures scheduled</p>
+            ) : null}
           </div>
-
-          {/* Rest — compact, pushed slightly right for asymmetric rhythm */}
-          {restUpcoming.length > 0 && (
-            <div className="sm:ml-6">
-              {restUpcoming.map(f => <UpcomingRow key={f.id} fixture={f} />)}
-            </div>
-          )}
-        </section>
+        </div>
       )}
 
       {/* ------------------------------------------------------------------ */}
@@ -212,7 +264,7 @@ export default function FixturesPage() {
       {/* ------------------------------------------------------------------ */}
       {completed.length > 0 && (
         <section>
-          <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium
+          <p className="text-[10px] uppercase tracking-widest text-[#04F5FF] font-medium
                          border-b border-white/[0.06] pb-3 mb-0">
             Results — {completed.length} {completed.length === 1 ? 'match' : 'matches'}
           </p>

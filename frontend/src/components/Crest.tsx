@@ -22,21 +22,25 @@ export default function Crest({ team, size = 10, className = '' }: Props) {
   const { primary } = getTeamColor(team)
   const px = size * 4
 
-  if (!url) {
-    return (
-      <div
-        className={`rounded-full flex-shrink-0 ${className}`}
-        style={{ width: px, height: px, backgroundColor: primary, opacity: 0.25 }}
-      />
-    )
-  }
   return (
-    <img
-      src={url}
-      alt={team}
+    <div
+      className={`flex-shrink-0 ${className}`}
       style={{ width: px, height: px }}
-      className={`object-contain flex-shrink-0 ${className}`}
-      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-    />
+    >
+      {url ? (
+        <img
+          src={url}
+          alt={team}
+          style={{ width: '100%', height: '100%' }}
+          className="object-contain"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+      ) : (
+        <div
+          className="rounded-full w-full h-full"
+          style={{ backgroundColor: primary, opacity: 0.25 }}
+        />
+      )}
+    </div>
   )
 }

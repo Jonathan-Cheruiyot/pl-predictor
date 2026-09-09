@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Nav from './components/Nav'
 import FixturesPage from './pages/FixturesPage'
+import PastFixturesPage from './pages/PastFixturesPage'
 import PredictionPage from './pages/PredictionPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import LeaguePage from './pages/LeaguePage'
@@ -14,6 +15,7 @@ export default function App() {
         <main className="mx-auto max-w-2xl px-4 py-10">
           <Routes>
             <Route path="/" element={<FixturesPage />} />
+            <Route path="/past" element={<PastFixturesPage />} />
             <Route path="/fixtures/:id" element={<PredictionPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/league" element={<LeaguePage />} />

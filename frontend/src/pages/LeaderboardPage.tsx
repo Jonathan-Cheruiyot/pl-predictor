@@ -43,7 +43,7 @@ function CumulativeChart({ history }: { history: ScoreHistoryEntry[] }) {
 
   return (
     <div className="mt-10">
-      <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium mb-3">
+      <p className="text-[10px] uppercase tracking-widest text-[#04F5FF] font-medium mb-3">
         Season so far — {n} {n === 1 ? 'match' : 'matches'}
       </p>
       <svg
@@ -63,7 +63,7 @@ function CumulativeChart({ history }: { history: ScoreHistoryEntry[] }) {
             <text
               x={PAD.left - 6} y={yOf(t) + 4}
               textAnchor="end" fontSize="9"
-              fill="#6B3F7E"
+              fill="#9D79BC"
             >
               {t}
             </text>
@@ -77,7 +77,7 @@ function CumulativeChart({ history }: { history: ScoreHistoryEntry[] }) {
               key={i}
               x={xOf(i)} y={H - 4}
               textAnchor="middle" fontSize="9"
-              fill="#6B3F7E"
+              fill="#9D79BC"
             >
               {i + 1}
             </text>
@@ -163,7 +163,7 @@ export default function LeaderboardPage() {
         </>
       ) : (
         <>
-          <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium mb-10">
+          <p className="text-[10px] uppercase tracking-widest text-[#04F5FF] font-medium mb-10">
             Season · {played} {played === 1 ? 'match' : 'matches'} played
           </p>
 
@@ -215,14 +215,14 @@ export default function LeaderboardPage() {
           {played > 0 && (
             <div className="flex items-center gap-8 mt-6">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium">Your avg</p>
+                <p className="text-[10px] uppercase tracking-widest text-[#9D79BC] font-medium">Your avg</p>
                 <p className="text-lg font-bold tabular-nums mt-0.5">
                   {(userPts / played).toFixed(2)}
                   <span className="text-xs text-[#9D79BC] font-normal ml-1">pts/match</span>
                 </p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium">Model avg</p>
+                <p className="text-[10px] uppercase tracking-widest text-[#9D79BC] font-medium">Model avg</p>
                 <p className="text-lg font-bold tabular-nums text-[#9D79BC] mt-0.5">
                   {(modelPts / played).toFixed(2)}
                   <span className="text-xs font-normal ml-1">pts/match</span>

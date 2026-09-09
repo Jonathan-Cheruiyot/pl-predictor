@@ -7,7 +7,7 @@ function zoneColor(pos: number): string {
   if (pos <= 4) return '#04F5FF'   // Champions League — cyan
   if (pos <= 6) return '#E90052'   // Europa — pink
   if (pos >= 18) return '#ff4444'  // Relegation — red
-  return '#6B3F7E'                 // Mid-table — muted
+  return '#9D79BC'                 // Mid-table — readable but subordinate
 }
 
 function zoneDot(pos: number) {
@@ -135,7 +135,7 @@ export default function LeaguePage() {
       {/* ------------------------------------------------------------------ */}
       {leader && (
         <div className="mb-12 -mx-4 px-4 pt-2 pb-8 border-b border-white/[0.06]">
-          <p className="text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium mb-6">
+          <p className="text-[10px] uppercase tracking-widest text-[#04F5FF] font-medium mb-6">
             Premier League · {leader.played} matches played
           </p>
           {/* Asymmetric: text block flush left, large crest hangs right */}
@@ -188,7 +188,7 @@ export default function LeaguePage() {
               <span className="w-4" />
               <span className="w-5" />
               <span className="flex-1" />
-              <div className="flex items-center gap-5 text-[10px] uppercase tracking-widest text-[#6B3F7E] font-medium text-right">
+              <div className="flex items-center gap-5 text-[10px] uppercase tracking-widest text-[#9D79BC] font-medium text-right">
                 <span className="w-6">P</span>
                 <span className="w-6">W</span>
                 <span className="w-6">D</span>

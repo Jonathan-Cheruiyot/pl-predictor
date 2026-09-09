@@ -12,8 +12,9 @@ FDORG_KEY = os.getenv("FOOTBALL_DATA_KEY", "")
 FDORG_BASE = "https://api.football-data.org/v4"
 TSDB_BASE = "https://www.thesportsdb.com/api/v1/json/3"
 
-STANDINGS_TTL = 300   # 5 minutes — table doesn't change mid-minute
-SQUAD_TTL = 3600      # 1 hour — squads are stable
+STANDINGS_TTL = 300    # 5 minutes — table doesn't change mid-minute
+SCHEDULED_TTL = 1200   # 20 minutes — kickoff times matter but don't change every minute
+SQUAD_TTL = 3600       # 1 hour — squads are stable
 
 # key → (fetched_at, data)
 _cache: dict[str, tuple[float, object]] = {}
@@ -73,6 +74,42 @@ def get_standings() -> list[dict]:
         ]
 
     return _get_cached("standings", STANDINGS_TTL, fetch)
+
+
+# ---------------------------------------------------------------------------
+# Scheduled PL matches
+# ---------------------------------------------------------------------------
+
+def get_scheduled_matches() -> list[dict]:
+    """
+    Fetches upcoming (SCHEDULED) PL matches from football-data.org.
+    Returns a normalised list of dicts compatible with the Fixture ORM shape.
+    Cached for SCHEDULED_TTL seconds.
+    """
+    def fetch():
+        r = httpx.get(
+            f"{FDORG_BASE}/competitions/PL/matches",
+            params={"status": "SCHEDULED"},
+            headers={"X-Auth-Token": FDORG_KEY},
+            timeout=10,
+        )
+        r.raise_for_status()
+        matches = r.json().get("matches", [])
+        result = []
+        for m in matches:
+            home_short = (m.get("homeTeam") or {}).get("shortName")
+            away_short = (m.get("awayTeam") or {}).get("shortName")
+            if not home_short or not away_short:
+                continue
+            result.append({
+                "home_team": home_short,
+                "away_team": away_short,
+                "kickoff_time": m["utcDate"],   # ISO 8601 with Z
+                "gameweek": m.get("matchday"),
+            })
+        return result
+
+    return _get_cached("scheduled_matches", SCHEDULED_TTL, fetch)
 
 
 # ---------------------------------------------------------------------------

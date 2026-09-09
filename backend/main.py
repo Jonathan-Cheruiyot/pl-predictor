@@ -78,13 +78,75 @@ def _get_fixture_or_404(fixture_id: int, db: Session) -> orm.Fixture:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+def _sync_scheduled_fixtures(db: Session) -> None:
+    """
+    Pull upcoming PL matches from football-data.org and upsert them into the
+    local DB so the prediction flow (which needs DB fixture IDs) keeps working.
+    Silently skips any match that can't be synced (e.g. unknown team name).
+    """
+    try:
+        matches = external.get_scheduled_matches()
+    except Exception:
+        return  # External API unavailable — don't break the fixtures endpoint
+
+    changed = False
+    for m in matches:
+        # Dedup: one home fixture per team pair per season
+        existing = (
+            db.query(orm.Fixture)
+            .filter_by(home_team=m["home_team"], away_team=m["away_team"])
+            .first()
+        )
+
+        kickoff_str = m["kickoff_time"]
+        kickoff = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
+        kickoff = kickoff.astimezone(timezone.utc).replace(tzinfo=None)
+
+        if existing:
+            # Update time/matchday if changed (e.g. rescheduled)
+            if existing.kickoff_time != kickoff or existing.gameweek != m["gameweek"]:
+                existing.kickoff_time = kickoff
+                existing.gameweek = m["gameweek"]
+                changed = True
+            continue
+
+        # New fixture — create and try to generate model prediction
+        fixture = orm.Fixture(
+            home_team=m["home_team"],
+            away_team=m["away_team"],
+            kickoff_time=kickoff,
+            gameweek=m["gameweek"],
+        )
+        db.add(fixture)
+        db.flush()
+
+        try:
+            if _predictor:
+                pred = _predictor.predict(m["home_team"], m["away_team"])
+                db.add(orm.ModelPrediction(fixture_id=fixture.id, **pred))
+        except Exception:
+            pass  # Unknown team or predictor error — fixture exists without model pred
+
+        changed = True
+
+    if changed:
+        db.commit()
+
+
 @app.get("/fixtures", response_model=list[schemas.FixtureOut])
 def list_fixtures(
     status: Optional[str] = None,
     gameweek: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    """List all fixtures. Filter by ?status=upcoming|completed and/or ?gameweek=N."""
+    """
+    List fixtures. Upcoming fixtures are synced from football-data.org on each
+    call (cached externally for 20 min). Filter by ?status=upcoming|completed
+    and/or ?gameweek=N.
+    """
+    if status != "completed":
+        _sync_scheduled_fixtures(db)
+
     q = db.query(orm.Fixture)
     if status:
         q = q.filter(orm.Fixture.status == status)
